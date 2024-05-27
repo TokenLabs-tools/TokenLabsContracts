@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import "./ERCToken.sol";
 
-contract TokenFactory is Ownable(msg.sender) {
+contract TokenLabsTokenFactory is Ownable(msg.sender) {
     struct TokenInfo {
         string name;
         string symbol;
