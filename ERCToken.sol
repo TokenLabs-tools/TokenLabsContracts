@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.19;
 
-interface IMyToken {
+interface IERCToken {
     function mint(address to, uint256 amount) external;
     // Aquí puedes agregar más funciones específicas de tu token si es necesario
 }
@@ -2281,7 +2281,7 @@ abstract contract ERC20Burnable is Context, ERC20 {
     }
 }
 
-// File: test3/MyToken.sol
+// File: ERCToken.sol
 
 
 pragma solidity 0.8.19;
@@ -2291,7 +2291,7 @@ pragma solidity 0.8.19;
 
 
 
-contract MyToken is ERC20, Ownable(msg.sender), ERC20Permit, IMyToken {
+contract ERCToken is ERC20, Ownable(msg.sender), ERC20Permit, IERCToken {
     bool public isBurnable;
     bool public isMintable;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./MyToken.sol";
+import "./ERCToken.sol";
 
 contract TokenFactory is Ownable(msg.sender) {
     struct TokenInfo {
@@ -47,7 +47,7 @@ contract TokenFactory is Ownable(msg.sender) {
 
         bool isBurnable = true;
 
-        MyToken newToken = new MyToken(name, symbol, msg.sender, initialSupply, isBurnable, isMintable); // Ajustar el constructor de MyToken
+        ERCToken newToken = new ERCToken(name, symbol, msg.sender, initialSupply, isBurnable, isMintable); // Ajustar el constructor de ERCToken
 
         if (isRenonced){
             newToken.renounceOwnership();
