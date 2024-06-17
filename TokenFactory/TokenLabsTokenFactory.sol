@@ -4,8 +4,9 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract TokenLabsTokenFactory is Ownable(msg.sender) {
+contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
     struct TokenInfo {string name; string symbol; address creator; uint256 creationDate; uint256 initialSupply; string imageUrl;}
 
     mapping(address => TokenInfo) public tokenInfo;
@@ -16,7 +17,7 @@ contract TokenLabsTokenFactory is Ownable(msg.sender) {
 
     function setCreationFee(uint256 _fee) public onlyOwner { creationFee = _fee; }
 
-    function createToken(string memory name, string memory symbol, uint256 initialSupply, string memory imageUrl) public payable returns (address newTokenAddress){
+    function createToken(string memory name, string memory symbol, uint256 initialSupply, string memory imageUrl) public payable nonReentrant returns (address newTokenAddress){
         require(msg.value >= creationFee, "Creation fee is not met");
 
         ERCToken newToken = new ERCToken(name, symbol, msg.sender, initialSupply); // Ajustar el constructor de ERCToken
