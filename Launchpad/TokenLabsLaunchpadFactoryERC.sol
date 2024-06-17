@@ -17,7 +17,6 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
     event SaleCreated(address newSale);
 
     uint256 private _feeAmount = 1 ether; // 1 ETH fee
-    address payable private _feeReceiver;
     IUniswapV2Router02 private _router;
     address private _weth;
 
@@ -27,15 +26,15 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
         address pairingToken; uint256 referralRewardPercentage; uint256 rewardPool; 
     }
 
-    constructor(address payable feeReceiver, IUniswapV2Router02 router, address weth) Ownable(msg.sender) {
-        (_feeReceiver, _router, _weth) = (feeReceiver, router, weth);
+    constructor( IUniswapV2Router02 router, address weth) Ownable(msg.sender) {
+        (_router, _weth) = (router, weth);
     }
 
     function createSale(SaleParams memory params) public payable nonReentrant returns (address) {
         require(msg.value == _feeAmount, "Incorrect fee amount");
         require(params.referralRewardPercentage <= 10, "Referral reward percentage cannot exceed 10%");
 
-        _feeReceiver.transfer(msg.value);
+        require(payable(owner()).send(msg.value), "Transfer failed");
 
         uint256 tokenAmountForSale = (params.hardcap * params.tokensPerWei) + (params.hardcap * params.tokensPerWeiListing) + params.rewardPool;
         IERC20(address(params.token)).safeTransferFrom(params.seller, address(this), tokenAmountForSale);
@@ -47,16 +46,6 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
         emit SaleCreated(address(newSale));
         return address(newSale);
     }
-
-    function setFeeReceiver(address payable feeReceiver) external onlyOwner {
-        _feeReceiver = feeReceiver;
-    }
-
-    function setFeeAmount(uint256 newFeeAmount) external onlyOwner {
-        _feeAmount = newFeeAmount;
-    }
-
-    function getFeeReceiver() external view returns (address payable) { return _feeReceiver; }
 
     function getFeeAmount() external view returns (uint256) { return _feeAmount; }
 

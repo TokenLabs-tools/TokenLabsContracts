@@ -51,6 +51,7 @@ contract TokenLabsLockingFactory is Ownable {
         uint256 _releaseInterval
     ) external payable returns (address) {
         require(msg.value >= vestingFee, "Insufficient fee for vesting contract");
+        require(payable(owner()).send(msg.value), "Transfer failed");
 
         TokenLabsVesting vestingContract = new TokenLabsVesting(
             _tokenAddress,
@@ -64,8 +65,6 @@ contract TokenLabsLockingFactory is Ownable {
 
         address vestingContractAddress = address(vestingContract);
         vestingContracts.push(vestingContractAddress);
-
-        payable(owner()).transfer(vestingFee);
 
         emit VestingContractCreated(
             vestingContractAddress,
@@ -88,6 +87,7 @@ contract TokenLabsLockingFactory is Ownable {
         uint256 _releaseTime
     ) external payable returns (address) {
         require(msg.value >= lockFee, "Insufficient fee for lock contract");
+        require(payable(owner()).send(msg.value), "Transfer failed");
 
         TokenLabsLock lockContract = new TokenLabsLock(
             _tokenAddress,
@@ -98,8 +98,6 @@ contract TokenLabsLockingFactory is Ownable {
 
         address lockContractAddress = address(lockContract);
         lockContracts.push(lockContractAddress);
-
-        payable(owner()).transfer(lockFee);
 
         emit LockContractCreated(
             lockContractAddress,

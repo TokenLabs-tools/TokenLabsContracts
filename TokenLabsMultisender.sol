@@ -42,6 +42,8 @@ contract TokenLabsMultisender is Ownable {
         require(recipients.length > 0, "The recipient array cannot be empty");
         require(msg.value == feeAmount, "Incorrect fee amount sent");
 
+        require(payable(owner()).send(msg.value), "Transfer failed");
+
         IERC20 token = IERC20(tokenAddress);
 
         uint256 totalAmount = amount * recipients.length;
@@ -52,8 +54,6 @@ contract TokenLabsMultisender is Ownable {
             require(recipients[i] != address(0), "Invalid recipient address");
             token.safeTransferFrom(msg.sender, recipients[i], amount);
         }
-
-        payable(owner()).transfer(msg.value);
 
         emit TokensSent(tokenAddress, totalAmount, recipients);
     }
