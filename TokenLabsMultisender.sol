@@ -7,54 +7,66 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title TokenLabsMultisender
- * @dev Este contrato permite enviar la misma cantidad de tokens a múltiples direcciones en una única transacción.
- *      Se aplica una tarifa de envío que se transfiere al propietario del contrato.
+ * @dev This contract facilitates sending the same amount of tokens to multiple addresses in a single transaction.
+ * It applies a sending fee that is transferred to the contract owner.
  */
 contract TokenLabsMultisender is Ownable {
-    using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20;
 
-    uint256 public feeAmount = 0.01 ether;
+  /**
+   * @dev The fee amount charged for sending tokens using massSendTokens.
+   */
+  uint256 public feeAmount = 0.01 ether;
 
-    event TokensSent(address indexed token, uint256 totalAmount, address[] recipients);
+  /**
+   * @dev Emitted when tokens are successfully sent to multiple recipients.
+   * @param token The address of the ERC20 token contract.
+   * @param totalAmount The total amount of tokens sent (including fees).
+   * @param recipients The array of recipient addresses.
+   */
+  event TokensSent(address indexed token, uint256 totalAmount, address[] recipients);
 
-    constructor() Ownable(msg.sender) {}
+  /**
+   * @dev Initializes the contract ownership to the address that deployed the contract.
+   */
+  constructor() Ownable(msg.sender) {}
 
-    /**
-     * @notice Actualiza la cantidad de la tarifa.
-     * @param _newFeeAmount La nueva cantidad de la tarifa.
-     */
-    function updateFeeAmount(uint256 _newFeeAmount) external onlyOwner {
-        require(_newFeeAmount > 0, "Fee amount must be greater than 0");
-        feeAmount = _newFeeAmount;
+  /**
+   * @notice Updates the sending fee amount. Requires the new fee amount to be greater than zero.
+   * @param _newFeeAmount The new fee amount to be set.
+   */
+  function updateFeeAmount(uint256 _newFeeAmount) external onlyOwner {
+    require(_newFeeAmount > 0, "Fee amount must be greater than 0");
+    feeAmount = _newFeeAmount;
+  }
+
+  /**
+   * @notice Sends tokens to multiple recipients in a single transaction.
+   * @dev Utilizes the transferFrom function of ERC20 tokens to send the same amount of tokens to each specified address.
+   * Additionally, it transfers a fixed fee to the contract owner.
+   * @param tokenAddress The address of the ERC20 token contract.
+   * @param amount The amount of tokens to send to each recipient.
+   * @param recipients An array of recipient addresses.
+   */
+  function massSendTokens(address tokenAddress, uint256 amount, address[] calldata recipients) external payable {
+    require(tokenAddress != address(0), "Invalid token address");
+    require(amount > 0, "Amount must be greater than 0");
+    require(recipients.length > 0, "The recipient array cannot be empty");
+    require(msg.value == feeAmount, "Incorrect fee amount sent");
+
+    require(payable(owner()).send(msg.value), "Transfer failed");
+
+    IERC20 token = IERC20(tokenAddress);
+
+    uint256 totalAmount = amount * recipients.length;
+    require(token.balanceOf(msg.sender) >= totalAmount, "Insufficient balance");
+    require(token.allowance(msg.sender, address(this)) >= totalAmount, "Insufficient allowance");
+
+    for (uint256 i = 0; i < recipients.length; i++) {
+      require(recipients[i] != address(0), "Invalid recipient address");
+      token.safeTransferFrom(msg.sender, recipients[i], amount);
     }
 
-    /**
-     * @notice Envía tokens a múltiples direcciones.
-     * @dev Utiliza la función `transferFrom` de los tokens ERC20 para enviar la misma cantidad de tokens a cada dirección especificada.
-     *      Además, transfiere una tarifa fija al propietario del contrato.
-     * @param tokenAddress La dirección del contrato del token ERC20.
-     * @param amount La cantidad de tokens a enviar a cada dirección.
-     * @param recipients Un array de direcciones de los destinatarios.
-     */
-    function massSendTokens(address tokenAddress, uint256 amount, address[] calldata recipients) external payable {
-        require(tokenAddress != address(0), "Invalid token address");
-        require(amount > 0, "Amount must be greater than 0");
-        require(recipients.length > 0, "The recipient array cannot be empty");
-        require(msg.value == feeAmount, "Incorrect fee amount sent");
-
-        require(payable(owner()).send(msg.value), "Transfer failed");
-
-        IERC20 token = IERC20(tokenAddress);
-
-        uint256 totalAmount = amount * recipients.length;
-        require(token.balanceOf(msg.sender) >= totalAmount, "Insufficient balance");
-        require(token.allowance(msg.sender, address(this)) >= totalAmount, "Insufficient allowance");
-
-        for (uint256 i = 0; i < recipients.length; i++) {
-            require(recipients[i] != address(0), "Invalid recipient address");
-            token.safeTransferFrom(msg.sender, recipients[i], amount);
-        }
-
-        emit TokensSent(tokenAddress, totalAmount, recipients);
-    }
+    emit TokensSent(tokenAddress, totalAmount, recipients);
+  }
 }
