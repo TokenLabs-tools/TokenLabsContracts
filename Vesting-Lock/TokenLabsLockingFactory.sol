@@ -65,6 +65,8 @@ contract TokenLabsLockingFactory is Ownable {
         address vestingContractAddress = address(vestingContract);
         vestingContracts.push(vestingContractAddress);
 
+        payable(owner()).transfer(vestingFee);
+
         emit VestingContractCreated(
             vestingContractAddress,
             _beneficiary,
@@ -97,6 +99,8 @@ contract TokenLabsLockingFactory is Ownable {
         address lockContractAddress = address(lockContract);
         lockContracts.push(lockContractAddress);
 
+        payable(owner()).transfer(lockFee);
+
         emit LockContractCreated(
             lockContractAddress,
             _beneficiary,
@@ -114,9 +118,5 @@ contract TokenLabsLockingFactory is Ownable {
 
     function getLockContracts() external view returns (address[] memory) {
         return lockContracts;
-    }
-
-    function withdrawFees() external onlyOwner {
-        payable(owner()).transfer(address(this).balance);
     }
 }
