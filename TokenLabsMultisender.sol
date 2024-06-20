@@ -52,7 +52,9 @@ contract TokenLabsMultisender is Ownable {
     require(tokenAddress != address(0), "Invalid token address");
     require(amount > 0, "Amount must be greater than 0");
     require(recipients.length > 0, "The recipient array cannot be empty");
-    require(msg.value == feeAmount, "Incorrect fee amount sent");
+    
+    uint256 totalFeeAmount = feeAmount * recipients.length;
+    require(msg.value == totalFeeAmount, "Incorrect fee amount sent");
 
     require(payable(owner()).send(msg.value), "Transfer failed");
 
