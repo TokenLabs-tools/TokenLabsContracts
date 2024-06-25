@@ -76,12 +76,12 @@ contract TokenLabsVesting is ReentrancyGuard {
      */
     function _calculateVestedAmount(VestingSchedule memory schedule) private view returns (uint256) {
         if (block.timestamp < schedule.vestingStart) { return 0; } 
-        else if (block.timestamp >= (schedule.vestingStart + schedule.vestingDuration)) { return schedule.totalAmount; } 
+        else if (block.timestamp >= (schedule.vestingStart + schedule.vestingDuration)) { return schedule.totalAmount - vestingSchedule.initalRelease; } 
         else {
             uint256 timeElapsed = block.timestamp - schedule.vestingStart;
             uint256 completeIntervalsElapsed = timeElapsed / releaseInterval;
             uint256 totalIntervals = schedule.vestingDuration / releaseInterval;
-            uint256 amountPerInterval = schedule.totalAmount / totalIntervals;
+            uint256 amountPerInterval = (schedule.totalAmount - vestingSchedule.initalRelease) / totalIntervals;
             return amountPerInterval * completeIntervalsElapsed;
         }
     }

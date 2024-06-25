@@ -27,6 +27,7 @@ contract TokenLabsLock {
      */
     constructor(address _tokenAddress, address _beneficiary, uint256 _lockedAmount, uint256 _releaseTime) {
         require(_releaseTime > block.timestamp, "Release time is in the past");
+        require(_lockedAmount > 0, "Locked amount must be greater than zero");
 
         token = IERC20(_tokenAddress);
         beneficiary = _beneficiary;
@@ -43,6 +44,7 @@ contract TokenLabsLock {
     function releaseTokens() external {
         require(block.timestamp >= releaseTime, "Current time is before release time");
         require(msg.sender == beneficiary, "Only the beneficiary can release tokens");
+        require(lockedAmount > 0, "No tokens to release");
 
         uint256 amount = lockedAmount;
         lockedAmount = 0;

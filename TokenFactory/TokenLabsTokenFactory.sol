@@ -37,6 +37,7 @@ contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
      */
     function createToken(string memory name, string memory symbol, uint256 initialSupply) public payable nonReentrant returns (address newTokenAddress) {
         require(msg.value >= creationFee, "Creation fee is not met");
+        require(initialSupply >= 1, "Initial supply must be at least 1");
         require(payable(owner()).send(msg.value), "Transfer failed");
 
         ERCToken newToken = new ERCToken(name, symbol, msg.sender, initialSupply); // Adjust the constructor of ERCToken
@@ -73,5 +74,7 @@ contract ERCToken is ERC20, ERC20Burnable {
      * @param creator The address of the token creator.
      * @param initialSupply The initial supply of the token.
      */
-    constructor(string memory name, string memory symbol, address creator, uint256 initialSupply) ERC20(name, symbol) { _mint(creator, initialSupply); }
+    constructor(string memory name, string memory symbol, address creator, uint256 initialSupply) ERC20(name, symbol) { 
+        _mint(creator, initialSupply); 
+    }
 }

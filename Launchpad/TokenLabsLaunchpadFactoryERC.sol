@@ -198,17 +198,17 @@ contract SaleContract is Ownable, ReentrancyGuard {
         uint256 liquidityETH = sale.collectedETH > sale.hardcap ? sale.hardcap : sale.collectedETH;
         uint256 excessETH = sale.collectedETH > sale.hardcap ? sale.collectedETH - sale.hardcap : 0;
 
+        ERC20Burnable token = ERC20Burnable(address(sale.token));
+
         if (sale.collectedETH >= sale.softcap && sale.collectedETH < sale.hardcap) {
             uint256 remainingEth = sale.hardcap > sale.collectedETH ? sale.hardcap - sale.collectedETH : 0;
             uint256 remainingTokens = (remainingEth * sale.tokensPerWeiListing) + (remainingEth * sale.tokensPerWei);
-            ERC20Burnable token = ERC20Burnable(address(sale.token));
-            if (remainingTokens > 0) {
-                token.burn(remainingTokens);
-            }
-            if (sale.rewardPool > 0) {
-                token.burn(sale.rewardPool);
-            }
+            
+            if (remainingTokens > 0) { token.burn(remainingTokens); }
+            
         }
+
+        if (sale.rewardPool > 0) { token.burn(sale.rewardPool); }
 
         if (excessETH > 0) {
             if (additionalSaleDetails.pairingToken == address(0)) {
