@@ -212,11 +212,11 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @param ethAmount The amount of ETH to add as liquidity.
      */
     function addLiquidityToDEX(uint256 tokenAmount, uint256 ethAmount) private {
-        IERC20(address(sale.token)).approve(address(dexRouter), tokenAmount);
+        IERC20(address(sale.token)).safeApprove(address(dexRouter), tokenAmount);
         if (additionalSaleDetails.pairingToken == address(0)) {
             dexRouter.addLiquidityETH{value: ethAmount}(address(sale.token), tokenAmount, 0, 0, address(0), block.timestamp);
         } else {
-            IERC20(additionalSaleDetails.pairingToken).approve(address(dexRouter), ethAmount);
+            IERC20(additionalSaleDetails.pairingToken).safeApprove(address(dexRouter), ethAmount);
             dexRouter.addLiquidity(address(sale.token), additionalSaleDetails.pairingToken, tokenAmount, ethAmount, 0, 0, address(0), block.timestamp);
         }
     }
