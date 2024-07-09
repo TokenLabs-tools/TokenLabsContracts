@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  * @dev This contract allows the creation of token sales for launching new tokens. 
  *      It charges a fee for creating each sale and handles the token sale process.
  */
-contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
+contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address[] public sales;
@@ -65,6 +65,21 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
     }
 
     /**
+    * @notice Override renounceOwnership.
+    */
+    function renounceOwnership() public override onlyOwner {
+        revert("Renounce ownership is not allowed");
+    }
+
+    /**
+     * @notice Sets the fee amount for creating a sale.
+     * @param feeAmount The new fee amount.
+     */
+    function setFeeAmount(uint256 feeAmount) external onlyOwner {
+        _feeAmount = feeAmount;
+    }
+
+    /**
      * @notice Returns the fee amount for creating a sale.
      * @return The fee amount.
      */
@@ -76,6 +91,7 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
      */
     function getSales() public view returns (address[] memory) { return sales; }
 }
+
 
 /**
  * @title SaleContract

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  * @dev This contract allows users to create their own ERC20 tokens with a specified initial supply. 
  *      It charges a fee for token creation.
  */
-contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
+contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
     struct TokenInfo {string name; string symbol; address creator; uint256 creationDate; uint256 initialSupply;}
 
     mapping(address => TokenInfo) public tokenInfo;
@@ -19,6 +19,8 @@ contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
     uint256 public creationFee = 0.0001 ether;
 
     event TokenCreated(address indexed tokenAddress, string name, string symbol, address creator, uint256 creationDate, uint256 initialSupply);
+
+    constructor() Ownable(msg.sender) {}
 
     /**
      * @notice Sets the fee for creating a new token.
@@ -64,6 +66,13 @@ contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
      * @return An array of token addresses created by the specified creator.
      */
     function getCreatedTokens(address creator) public view returns (address[] memory) { return tokensCreatedBy[creator]; }
+
+    /**
+    * @notice Override renounceOwnership.
+    */
+    function renounceOwnership() public override onlyOwner {
+        revert("Renounce ownership is not allowed");
+    }
     
 }
 

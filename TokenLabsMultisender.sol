@@ -3,14 +3,14 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title TokenLabsMultisender
  * @dev This contract facilitates sending the same amount of tokens to multiple addresses in a single transaction.
  * It applies a sending fee that is transferred to the contract owner.
  */
-contract TokenLabsMultisender is Ownable {
+contract TokenLabsMultisender is Ownable2Step {
   using SafeERC20 for IERC20;
 
   /**
@@ -38,6 +38,13 @@ contract TokenLabsMultisender is Ownable {
   function updateFeeAmount(uint256 _newFeeAmount) external onlyOwner {
     require(_newFeeAmount > 0, "Fee amount must be greater than 0");
     feeAmount = _newFeeAmount;
+  }
+
+  /**
+   * @notice Override renounceOwnership.
+   */
+  function renounceOwnership() public override onlyOwner {
+    revert("Renounce ownership is not allowed");
   }
 
   /**

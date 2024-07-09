@@ -3,14 +3,14 @@ pragma solidity 0.8.20;
 
 import "./TokenLabsVesting.sol";
 import "./TokenLabsLock.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title TokenLabsLockingFactory
  * @dev This contract allows the creation of vesting and lock contracts for ERC20 tokens. 
  *      It charges a fee for creating each type of contract.
  */
-contract TokenLabsLockingFactory is Ownable {
+contract TokenLabsLockingFactory is Ownable2Step {
 
     uint256 public vestingFee = 0.01 ether; // Default fee for creating a vesting contract
     uint256 public lockFee = 0.005 ether; // Default fee for creating a lock contract
@@ -36,6 +36,13 @@ contract TokenLabsLockingFactory is Ownable {
      * @dev Only callable by the contract owner.
      */
     function setLockFee(uint256 _lockFee) external onlyOwner { lockFee = _lockFee; }
+
+    /**
+    * @notice Override renounceOwnership.
+    */
+    function renounceOwnership() public override onlyOwner {
+        revert("Renounce ownership is not allowed");
+    }
 
     /**
      * @notice Creates a new vesting contract.
