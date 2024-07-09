@@ -50,6 +50,10 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
     function createSale(SaleParams memory params) public payable nonReentrant returns (address) {
         require(msg.value == _feeAmount, "Incorrect fee amount");
         require(params.referralRewardPercentage <= 10, "Referral reward percentage cannot exceed 10%");
+        
+        if(params.referralRewardPercentage > 0){
+            require(params.rewardPool > 0, "Reward Pool cannot be 0");
+        }
 
         (bool success, ) = owner().call{value: msg.value}("");
         require(success, "Transfer failed");
@@ -127,6 +131,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @param _weth The address of the Wrapped ETH token.
      */
     constructor(TokenLabsLaunchpadFactory.SaleParams memory params, IUniswapV2Router02 _dexRouter, address _weth, address _owner) Ownable(_owner) {
+        require(params.softcap < params.hardcap, "Softcap must not be greater than Hardcap");
         sale = Sale(params.seller, params.token, params.softcap, params.hardcap, params.startTime, params.endTime, params.tokensPerWei, params.tokensPerWeiListing, 0, params.limitPerAccountEnabled, params.limitPerAccount, params.referralRewardPercentage, params.rewardPool);
         additionalSaleDetails = AdditionalSaleDetails(params.pairingToken);
         dexRouter = _dexRouter;

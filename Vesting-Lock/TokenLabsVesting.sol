@@ -33,6 +33,13 @@ contract TokenLabsVesting is ReentrancyGuard {
      * @param _releaseInterval The interval at which tokens are released.
      */
     constructor(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) {
+        require(_beneficiary != address(0), "Beneficiary cannot be the zero address");
+        require(_releaseInterval <= _vestingDuration, "Release interval must be less than or equal to vesting duration");
+        require(_releaseInterval > 0, "Release interval cannot be zero");
+        require(_vestingDuration > 0, "Vesting duration cannot be zero");
+        require(_totalAmount > 0, "Total amount cannot be zero");
+        require(_vestingStart >= block.timestamp, "Vesting start must be in the future");
+
         token = IERC20(_tokenAddress);
         beneficiary = _beneficiary;
         releaseInterval = _releaseInterval;
