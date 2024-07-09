@@ -266,35 +266,50 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @dev If the sale did not reach the softcap, users can claim refunds. Otherwise, they can claim their tokens.
      */
     function claim() external nonReentrant {
-        require(block.timestamp > sale.endTime, "Sale has not ended");
-        if (sale.collectedETH < sale.softcap) {
-            uint256 remainingTokens = IERC20(address(sale.token)).balanceOf(address(this));
-            uint256 ethAmount = contributions[msg.sender];
+    require(block.timestamp > sale.endTime, "Sale has not ended");
+    
+    if (sale.collectedETH < sale.softcap) {
+        uint256 remainingTokens = IERC20(address(sale.token)).balanceOf(address(this));
+        uint256 ethAmount = contributions[msg.sender];
 
-            if (sale.seller == msg.sender && remainingTokens > 0) {
-                IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
-                if(ethAmount > 0){
+        if (sale.seller == msg.sender && remainingTokens > 0) {
+            IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
+
+            if(ethAmount > 0){
+
+                if (additionalSaleDetails.pairingToken == address(0)) {
                     contributions[msg.sender] = 0;
                     (bool success, ) = msg.sender.call{value: ethAmount}("");
                     require(success, "Transfer failed");
+                } else {
+                    IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
                 }
-            } else {
-                require(ethAmount > 0, "No amount available to claim");
-                contributions[msg.sender] = 0;
+                
+            }
+
+        } else {
+            require(ethAmount > 0, "No amount available to claim");
+            contributions[msg.sender] = 0;
+            if (additionalSaleDetails.pairingToken == address(0)) {
                 (bool success, ) = msg.sender.call{value: ethAmount}("");
                 require(success, "Transfer failed");
+            } else {
+                IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
             }
-        } else {
-            uint256 tokens = tokenAmounts[msg.sender];
-            uint256 referralReward = referralRewards[msg.sender];
-            uint256 totalTokens = tokens + referralReward;
-
-            require(totalTokens > 0, "No tokens available to claim");
-            tokenAmounts[msg.sender] = 0;
-            referralRewards[msg.sender] = 0;
-            IERC20(address(sale.token)).safeTransfer(msg.sender, totalTokens);
         }
+        
+    } else {
+        uint256 tokens = tokenAmounts[msg.sender];
+        uint256 referralReward = referralRewards[msg.sender];
+        uint256 totalTokens = tokens + referralReward;
+
+        require(totalTokens > 0, "No tokens available to claim");
+        tokenAmounts[msg.sender] = 0;
+        referralRewards[msg.sender] = 0;
+        IERC20(address(sale.token)).safeTransfer(msg.sender, totalTokens);
     }
+}
+
 
     /**
      * @notice Cancels the token sale.
