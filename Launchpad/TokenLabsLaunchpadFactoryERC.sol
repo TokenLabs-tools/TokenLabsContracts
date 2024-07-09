@@ -146,16 +146,18 @@ contract SaleContract is Ownable, ReentrancyGuard {
      */
     function buyTokens(uint256 erc20Amount, address referrer) public payable nonReentrant {
         require(block.timestamp >= sale.startTime && block.timestamp <= sale.endTime, "Sale is not ongoing");
-        require(msg.value > 0 || erc20Amount > 0, "Amount must be greater than zero");
         require(referrer != msg.sender, "You cannot refer yourself");
 
-        uint256 purchaseAmount;
-        bool isETH = msg.value > 0;
+        uint256 purchaseAmount = 0;
+        bool isETH = false;
         uint256 excessAmount = 0;
 
-        if (isETH) {
+        if (additionalSaleDetails.pairingToken == address(0)) {
+            require(msg.value > 0, "Amount must be greater than zero");
+            isETH = true;
             purchaseAmount = msg.value;
         } else {
+            require(erc20Amount > 0, "Amount must be greater than zero");
             purchaseAmount = erc20Amount;
             IERC20(additionalSaleDetails.pairingToken).safeTransferFrom(msg.sender, address(this), purchaseAmount);
         }
