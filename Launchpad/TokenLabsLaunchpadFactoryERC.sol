@@ -57,7 +57,7 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
         uint256 tokenAmountForSale = (params.hardcap * params.tokensPerWei) + (params.hardcap * params.tokensPerWeiListing) + params.rewardPool;
         IERC20(address(params.token)).safeTransferFrom(params.seller, address(this), tokenAmountForSale);
 
-        SaleContract newSale = new SaleContract(params, _router, _weth);
+        SaleContract newSale = new SaleContract(params, _router, _weth, msg.sender);
         IERC20(address(params.token)).safeTransfer(address(newSale), tokenAmountForSale);
 
         sales.push(address(newSale));
@@ -126,7 +126,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @param _dexRouter The address of the Uniswap V2 router.
      * @param _weth The address of the Wrapped ETH token.
      */
-    constructor(TokenLabsLaunchpadFactory.SaleParams memory params, IUniswapV2Router02 _dexRouter, address _weth) Ownable(msg.sender) {
+    constructor(TokenLabsLaunchpadFactory.SaleParams memory params, IUniswapV2Router02 _dexRouter, address _weth, address _owner) Ownable(_owner) {
         sale = Sale(params.seller, params.token, params.softcap, params.hardcap, params.startTime, params.endTime, params.tokensPerWei, params.tokensPerWeiListing, 0, params.limitPerAccountEnabled, params.limitPerAccount, params.referralRewardPercentage, params.rewardPool);
         additionalSaleDetails = AdditionalSaleDetails(params.pairingToken);
         dexRouter = _dexRouter;
