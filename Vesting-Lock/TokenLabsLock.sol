@@ -49,7 +49,7 @@ contract TokenLabsLock {
         uint256 amount = lockedAmount;
         lockedAmount = 0;
 
-        require(token.transfer(beneficiary, amount), "Token transfer failed");
+        token.safeTransfer(beneficiary, amount);
 
         emit TokensReleased(beneficiary, amount);
     }
