@@ -147,6 +147,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
     function buyTokens(uint256 erc20Amount, address referrer) public payable nonReentrant {
         require(block.timestamp >= sale.startTime && block.timestamp <= sale.endTime, "Sale is not ongoing");
         require(referrer != msg.sender, "You cannot refer yourself");
+        require(!isListed, "Tokens were listed");
 
         uint256 purchaseAmount = 0;
         bool isETH = false;
