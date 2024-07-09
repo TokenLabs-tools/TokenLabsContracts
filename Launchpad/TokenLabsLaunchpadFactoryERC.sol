@@ -123,6 +123,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
     mapping(address => uint256) public referralRewards;
     address public weth;
     bool public isListed = false;
+    bool public isCanceled = false;
 
     /**
      * @dev Initializes the sale contract with the given parameters.
@@ -148,6 +149,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
         require(block.timestamp >= sale.startTime && block.timestamp <= sale.endTime, "Sale is not ongoing");
         require(referrer != msg.sender, "You cannot refer yourself");
         require(!isListed, "Tokens were listed");
+        require(!isCanceled, "Tokens Sale Canceled");
 
         uint256 purchaseAmount = 0;
         bool isETH = false;
@@ -322,6 +324,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
     function cancelSale() external onlyOwner nonReentrant {
         require(block.timestamp < sale.startTime || block.timestamp > sale.endTime, "Sale cannot be cancelled after it has started");
         sale.endTime = block.timestamp; // Mark the sale as ended
+        isCanceled = true;
     }
 
     /**
