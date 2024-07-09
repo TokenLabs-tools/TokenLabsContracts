@@ -187,7 +187,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
             IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, excessAmount);
         }
 
-        sale.collectedETH = isETH ? address(this).balance : IERC20(additionalSaleDetails.pairingToken).balanceOf(address(this));
+        sale.collectedETH += purchaseAmount;
 
         contributions[msg.sender] += purchaseAmount;
 
