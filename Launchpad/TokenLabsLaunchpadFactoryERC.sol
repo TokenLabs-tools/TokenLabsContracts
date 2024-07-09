@@ -20,6 +20,7 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
 
     address[] public sales;
     event SaleCreated(address newSale);
+    event FeeAmountUpdated(uint256 oldFeeAmount, uint256 newFeeAmount);
 
     uint256 private _feeAmount = 1 ether; // 1 ETH fee
     IUniswapV2Router02 private immutable _router;
@@ -76,7 +77,9 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
      * @param feeAmount The new fee amount.
      */
     function setFeeAmount(uint256 feeAmount) external onlyOwner {
+        uint256 oldFeeAmount = _feeAmount;
         _feeAmount = feeAmount;
+        emit FeeAmountUpdated(oldFeeAmount, feeAmount);
     }
 
     /**

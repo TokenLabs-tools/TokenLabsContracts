@@ -27,6 +27,13 @@ contract TokenLabsMultisender is Ownable2Step {
   event TokensSent(address indexed token, uint256 totalAmount, address[] recipients);
 
   /**
+   * @dev Emitted when the fee amount is updated.
+   * @param previousFeeAmount The previous fee amount.
+   * @param newFeeAmount The new fee amount.
+   */
+  event FeeAmountUpdated(uint256 previousFeeAmount, uint256 newFeeAmount);
+
+  /**
    * @dev Initializes the contract ownership to the address that deployed the contract.
    */
   constructor() Ownable(msg.sender) {}
@@ -37,7 +44,9 @@ contract TokenLabsMultisender is Ownable2Step {
    */
   function updateFeeAmount(uint256 _newFeeAmount) external onlyOwner {
     require(_newFeeAmount > 0, "Fee amount must be greater than 0");
+    uint256 previousFeeAmount = feeAmount;
     feeAmount = _newFeeAmount;
+    emit FeeAmountUpdated(previousFeeAmount, _newFeeAmount);
   }
 
   /**

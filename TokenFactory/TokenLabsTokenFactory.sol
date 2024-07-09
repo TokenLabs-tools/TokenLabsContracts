@@ -19,6 +19,7 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
     uint256 public creationFee = 0.0001 ether;
 
     event TokenCreated(address indexed tokenAddress, string name, string symbol, address creator, uint256 creationDate, uint256 initialSupply);
+    event CreationFeeUpdated(uint256 oldFee, uint256 newFee);
 
     constructor() Ownable(msg.sender) {}
 
@@ -27,7 +28,11 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
      * @param _fee The new creation fee.
      * @dev Only callable by the contract owner.
      */
-    function setCreationFee(uint256 _fee) public onlyOwner { creationFee = _fee; }
+    function setCreationFee(uint256 _fee) public onlyOwner {
+        uint256 oldFee = creationFee;
+        creationFee = _fee;
+        emit CreationFeeUpdated(oldFee, _fee);
+    }
 
     /**
      * @notice Creates a new ERC20 token.

@@ -17,6 +17,8 @@ contract TokenLabsLockingFactory is Ownable2Step {
 
     event VestingContractCreated(address indexed vestingContract, address indexed beneficiary, address indexed token, uint256 totalAmount, uint256 initialRelease, uint256 vestingStart, uint256 vestingDuration, uint256 releaseInterval);
     event LockContractCreated(address indexed lockContract, address indexed beneficiary, address indexed token, uint256 lockedAmount, uint256 releaseTime);
+    event VestingFeeUpdated(uint256 oldVestingFee, uint256 newVestingFee);
+    event LockFeeUpdated(uint256 oldLockFee, uint256 newLockFee);
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -28,14 +30,22 @@ contract TokenLabsLockingFactory is Ownable2Step {
      * @param _vestingFee The new vesting fee.
      * @dev Only callable by the contract owner.
      */
-    function setVestingFee(uint256 _vestingFee) external onlyOwner { vestingFee = _vestingFee; }
+    function setVestingFee(uint256 _vestingFee) external onlyOwner {
+        uint256 oldFee = vestingFee;
+        vestingFee = _vestingFee;
+        emit VestingFeeUpdated(oldFee, _vestingFee);
+    }
 
     /**
      * @notice Sets the fee for creating lock contracts.
      * @param _lockFee The new lock fee.
      * @dev Only callable by the contract owner.
      */
-    function setLockFee(uint256 _lockFee) external onlyOwner { lockFee = _lockFee; }
+    function setLockFee(uint256 _lockFee) external onlyOwner {
+        uint256 oldFee = lockFee;
+        lockFee = _lockFee;
+        emit LockFeeUpdated(oldFee, _lockFee);
+    }
 
     /**
     * @notice Override renounceOwnership.
