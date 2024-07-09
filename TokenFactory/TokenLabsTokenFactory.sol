@@ -46,7 +46,9 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
         require(msg.value >= creationFee, "Creation fee is not met");
         require(initialSupply >= 1, "Initial supply must be at least 1");
 
-        (bool sent, ) = owner().call{value: msg.value}("");
+        uint256 extraFee = msg.value - creationFee;
+
+        (bool sent, ) = owner().call{value: creationFee}("");
         require(sent, "Transfer failed");
 
         ERCToken newToken = new ERCToken(name, symbol, msg.sender, initialSupply); // Adjust the constructor of ERCToken
@@ -57,8 +59,8 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
 
         emit TokenCreated(address(newToken), name, symbol, msg.sender, block.timestamp, initialSupply);
 
-        if (msg.value > creationFee) {
-            (bool refundSent, ) = msg.sender.call{value: msg.value - creationFee}("");
+        if (extraFee > 0) {
+            (bool refundSent, ) = msg.sender.call{value: extraFee}("");
             require(refundSent, "Refund transfer failed");
         }
 
