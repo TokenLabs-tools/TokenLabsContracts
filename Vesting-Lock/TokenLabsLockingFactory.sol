@@ -69,6 +69,7 @@ contract TokenLabsLockingFactory is Ownable2Step {
     function createVestingContract(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) external payable returns (address) {
         require(msg.value == vestingFee, "Insufficient fee for vesting contract");
         require(_initialRelease <= _totalAmount, "Initial release amount cannot be greater than the total amount");
+        require(_totalAmount > 0, "Vesting amount must be greater than zero");
 
         (bool sent, ) = owner().call{value: msg.value}("");
         require(sent, "Transfer failed");
