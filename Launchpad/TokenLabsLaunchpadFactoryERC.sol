@@ -267,7 +267,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
      */
     function claim() external nonReentrant {
     require(block.timestamp > sale.endTime, "Sale has not ended");
-    
+        
     if (sale.collectedETH < sale.softcap) {
         uint256 remainingTokens = IERC20(address(sale.token)).balanceOf(address(this));
         uint256 ethAmount = contributions[msg.sender];
@@ -297,8 +297,9 @@ contract SaleContract is Ownable, ReentrancyGuard {
                 IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
             }
         }
-        
+
     } else {
+        require(isListed == true, "Sale has not ended");
         uint256 tokens = tokenAmounts[msg.sender];
         uint256 referralReward = referralRewards[msg.sender];
         uint256 totalTokens = tokens + referralReward;
