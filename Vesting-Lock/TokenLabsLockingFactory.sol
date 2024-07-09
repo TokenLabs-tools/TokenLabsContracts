@@ -67,7 +67,7 @@ contract TokenLabsLockingFactory is Ownable2Step {
      * @dev Requires a fee to be paid. The fee is transferred to the contract owner.
      */
     function createVestingContract(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) external payable returns (address) {
-        require(msg.value >= vestingFee, "Insufficient fee for vesting contract");
+        require(msg.value == vestingFee, "Insufficient fee for vesting contract");
         require(_initialRelease <= _totalAmount, "Initial release amount cannot be greater than the total amount");
 
         (bool sent, ) = owner().call{value: msg.value}("");
@@ -92,7 +92,7 @@ contract TokenLabsLockingFactory is Ownable2Step {
      * @dev Requires a fee to be paid. The fee is transferred to the contract owner.
      */
     function createLockContract(address _tokenAddress, address _beneficiary, uint256 _lockedAmount, uint256 _releaseTime) external payable returns (address) {
-        require(msg.value >= lockFee, "Insufficient fee for lock contract");
+        require(msg.value == lockFee, "Insufficient fee for lock contract");
         require(_lockedAmount > 0, "Locked amount must be greater than zero");
 
         (bool sent, ) = owner().call{value: msg.value}("");
