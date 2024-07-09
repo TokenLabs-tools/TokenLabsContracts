@@ -56,7 +56,8 @@ contract TokenLabsMultisender is Ownable {
     uint256 totalFeeAmount = feeAmount * recipients.length;
     require(msg.value == totalFeeAmount, "Incorrect fee amount sent");
 
-    require(payable(owner()).send(msg.value), "Transfer failed");
+    (bool success, ) = owner().call{value: msg.value}("");
+    require(success, "Transfer failed");
 
     IERC20 token = IERC20(tokenAddress);
 

@@ -50,7 +50,8 @@ contract TokenLabsLaunchpadFactory is Ownable, ReentrancyGuard {
         require(msg.value == _feeAmount, "Incorrect fee amount");
         require(params.referralRewardPercentage <= 10, "Referral reward percentage cannot exceed 10%");
 
-        require(payable(owner()).send(msg.value), "Transfer failed");
+        (bool success, ) = owner().call{value: msg.value}("");
+        require(success, "Transfer failed");
 
         uint256 tokenAmountForSale = (params.hardcap * params.tokensPerWei) + (params.hardcap * params.tokensPerWeiListing) + params.rewardPool;
         IERC20(address(params.token)).safeTransferFrom(params.seller, address(this), tokenAmountForSale);
@@ -153,9 +154,14 @@ contract SaleContract is Ownable, ReentrancyGuard {
 
         tokenAmounts[msg.sender] += amountOfTokens;
         
-        if (excessAmount > 0 && isETH) require(payable(owner()).send(msg.value), "Transfer failed");
+        if (excessAmount > 0 && isETH) {
+            (bool success, ) = msg.sender.call{value: excessAmount}("");
+            require(success, "Refund transfer failed");
+        }
 
-        if (excessAmount > 0 && !isETH) IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, excessAmount);
+        if (excessAmount > 0 && !isETH) {
+            IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, excessAmount);
+        }
 
         sale.collectedETH = isETH ? address(this).balance : IERC20(additionalSaleDetails.pairingToken).balanceOf(address(this));
 
@@ -212,7 +218,8 @@ contract SaleContract is Ownable, ReentrancyGuard {
 
         if (excessETH > 0) {
             if (additionalSaleDetails.pairingToken == address(0)) {
-                sale.seller.transfer(excessETH);
+                (bool success, ) = sale.seller.call{value: excessETH}("");
+                require(success, "Transfer failed");
             } else {
                 IERC20(additionalSaleDetails.pairingToken).safeTransfer(sale.seller, excessETH);
             }
@@ -244,12 +251,14 @@ contract SaleContract is Ownable, ReentrancyGuard {
                 IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
                 if(ethAmount > 0){
                     contributions[msg.sender] = 0;
-                    require(payable(msg.sender).send(ethAmount), "Transfer failed");
+                    (bool success, ) = msg.sender.call{value: ethAmount}("");
+                    require(success, "Transfer failed");
                 }
             } else {
                 require(ethAmount > 0, "No amount available to claim");
                 contributions[msg.sender] = 0;
-                require(payable(msg.sender).send(ethAmount), "Transfer failed");
+                (bool success, ) = msg.sender.call{value: ethAmount}("");
+                require(success, "Transfer failed");
             }
         } else {
             uint256 tokens = tokenAmounts[msg.sender];

@@ -38,7 +38,9 @@ contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
     function createToken(string memory name, string memory symbol, uint256 initialSupply) public payable nonReentrant returns (address newTokenAddress) {
         require(msg.value >= creationFee, "Creation fee is not met");
         require(initialSupply >= 1, "Initial supply must be at least 1");
-        require(payable(owner()).send(msg.value), "Transfer failed");
+
+        (bool sent, ) = owner().call{value: msg.value}("");
+        require(sent, "Transfer failed");
 
         ERCToken newToken = new ERCToken(name, symbol, msg.sender, initialSupply); // Adjust the constructor of ERCToken
         
@@ -48,7 +50,10 @@ contract TokenLabsTokenFactory is Ownable(msg.sender), ReentrancyGuard {
 
         emit TokenCreated(address(newToken), name, symbol, msg.sender, block.timestamp, initialSupply);
 
-        if (msg.value > creationFee) { require(payable(msg.sender).send(msg.value - creationFee), "Transfer failed"); }
+        if (msg.value > creationFee) {
+            (bool refundSent, ) = msg.sender.call{value: msg.value - creationFee}("");
+            require(refundSent, "Refund transfer failed");
+        }
 
         return address(newToken);
     }

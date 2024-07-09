@@ -52,7 +52,9 @@ contract TokenLabsLockingFactory is Ownable {
     function createVestingContract(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) external payable returns (address) {
         require(msg.value >= vestingFee, "Insufficient fee for vesting contract");
         require(_initialRelease <= _totalAmount, "Initial release amount cannot be greater than the total amount");
-        require(payable(owner()).send(msg.value), "Transfer failed");
+
+        (bool sent, ) = owner().call{value: msg.value}("");
+        require(sent, "Transfer failed");
 
         TokenLabsVesting vestingContract = new TokenLabsVesting(_tokenAddress, _beneficiary, _totalAmount, _initialRelease, _vestingStart, _vestingDuration, _releaseInterval);
 
@@ -75,7 +77,9 @@ contract TokenLabsLockingFactory is Ownable {
     function createLockContract(address _tokenAddress, address _beneficiary, uint256 _lockedAmount, uint256 _releaseTime) external payable returns (address) {
         require(msg.value >= lockFee, "Insufficient fee for lock contract");
         require(_lockedAmount > 0, "Locked amount must be greater than zero");
-        require(payable(owner()).send(msg.value), "Transfer failed");
+
+        (bool sent, ) = owner().call{value: msg.value}("");
+        require(sent, "Transfer failed");
 
         TokenLabsLock lockContract = new TokenLabsLock(_tokenAddress, _beneficiary, _lockedAmount, _releaseTime);
 
