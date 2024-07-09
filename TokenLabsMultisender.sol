@@ -4,13 +4,14 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @title TokenLabsMultisender
  * @dev This contract facilitates sending the same amount of tokens to multiple addresses in a single transaction.
  * It applies a sending fee that is transferred to the contract owner.
  */
-contract TokenLabsMultisender is Ownable2Step {
+contract TokenLabsMultisender is Ownable2Step, ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   /**
@@ -64,7 +65,7 @@ contract TokenLabsMultisender is Ownable2Step {
    * @param amount The amount of tokens to send to each recipient.
    * @param recipients An array of recipient addresses.
    */
-  function massSendTokens(address tokenAddress, uint256 amount, address[] calldata recipients) external payable {
+  function massSendTokens(address tokenAddress, uint256 amount, address[] calldata recipients) external payable nonReentrant {
     require(tokenAddress != address(0), "Invalid token address");
     require(amount > 0, "Amount must be greater than 0");
     require(recipients.length > 0, "The recipient array cannot be empty");

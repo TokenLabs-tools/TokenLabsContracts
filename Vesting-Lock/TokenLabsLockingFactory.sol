@@ -4,13 +4,14 @@ pragma solidity 0.8.20;
 import "./TokenLabsVesting.sol";
 import "./TokenLabsLock.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @title TokenLabsLockingFactory
  * @dev This contract allows the creation of vesting and lock contracts for ERC20 tokens. 
  *      It charges a fee for creating each type of contract.
  */
-contract TokenLabsLockingFactory is Ownable2Step {
+contract TokenLabsLockingFactory is Ownable2Step, ReentrancyGuard {
 
     uint256 public vestingFee = 0.01 ether; // Default fee for creating a vesting contract
     uint256 public lockFee = 0.005 ether; // Default fee for creating a lock contract
@@ -66,7 +67,7 @@ contract TokenLabsLockingFactory is Ownable2Step {
      * @return The address of the newly created vesting contract.
      * @dev Requires a fee to be paid. The fee is transferred to the contract owner.
      */
-    function createVestingContract(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) external payable returns (address) {
+    function createVestingContract(address _tokenAddress, address _beneficiary, uint256 _totalAmount, uint256 _initialRelease, uint256 _vestingStart, uint256 _vestingDuration, uint256 _releaseInterval) external payable nonReentrant returns (address) {
         require(msg.value == vestingFee, "Insufficient fee for vesting contract");
         require(_initialRelease <= _totalAmount, "Initial release amount cannot be greater than the total amount");
         require(_totalAmount > 0, "Vesting amount must be greater than zero");
@@ -92,7 +93,7 @@ contract TokenLabsLockingFactory is Ownable2Step {
      * @return The address of the newly created lock contract.
      * @dev Requires a fee to be paid. The fee is transferred to the contract owner.
      */
-    function createLockContract(address _tokenAddress, address _beneficiary, uint256 _lockedAmount, uint256 _releaseTime) external payable returns (address) {
+    function createLockContract(address _tokenAddress, address _beneficiary, uint256 _lockedAmount, uint256 _releaseTime) external payable nonReentrant returns (address) {
         require(msg.value == lockFee, "Insufficient fee for lock contract");
         require(_lockedAmount > 0, "Locked amount must be greater than zero");
 
