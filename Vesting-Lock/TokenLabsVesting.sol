@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  */
 contract TokenLabsVesting is ReentrancyGuard {
     using SafeERC20 for IERC20;
-    struct VestingSchedule { uint256 totalAmount; uint256 initalRelease; uint256 amountReleased; uint256 vestingStart; uint256 vestingDuration; bool initialReleaseClaimed;}
+    struct VestingSchedule { uint256 totalAmount; uint256 initialRelease; uint256 amountReleased; uint256 vestingStart; uint256 vestingDuration; bool initialReleaseClaimed;}
 
     IERC20 public token;
     VestingSchedule public vestingSchedule;
@@ -59,11 +59,11 @@ contract TokenLabsVesting is ReentrancyGuard {
      * @dev Internal function to handle the release of tokens according to the vesting schedule.
      */
     function _releaseTokens() internal {
-        if (vestingSchedule.initalRelease > 0 && !vestingSchedule.initialReleaseClaimed && block.timestamp >= vestingSchedule.vestingStart) {
-            uint256 initalRelease = vestingSchedule.initalRelease;
+        if (vestingSchedule.initialRelease > 0 && !vestingSchedule.initialReleaseClaimed && block.timestamp >= vestingSchedule.vestingStart) {
+            uint256 initialRelease = vestingSchedule.initialRelease;
             vestingSchedule.initialReleaseClaimed = true;
-            token.safeTransfer(beneficiary, initalRelease);
-            emit TokensClaimed(beneficiary, initalRelease);
+            token.safeTransfer(beneficiary, initialRelease);
+            emit TokensClaimed(beneficiary, initialRelease);
         } else {
             uint256 vestedAmount = _calculateVestedAmount(vestingSchedule);
             uint256 claimableAmount = vestedAmount - vestingSchedule.amountReleased;
@@ -82,12 +82,12 @@ contract TokenLabsVesting is ReentrancyGuard {
      */
     function _calculateVestedAmount(VestingSchedule memory schedule) private view returns (uint256) {
         if (block.timestamp < schedule.vestingStart) { return 0; } 
-        else if (block.timestamp >= (schedule.vestingStart + schedule.vestingDuration)) { return schedule.totalAmount - vestingSchedule.initalRelease; } 
+        else if (block.timestamp >= (schedule.vestingStart + schedule.vestingDuration)) { return schedule.totalAmount - vestingSchedule.initialRelease; } 
         else {
             uint256 timeElapsed = block.timestamp - schedule.vestingStart;
             uint256 completeIntervalsElapsed = timeElapsed / releaseInterval;
             uint256 totalIntervals = schedule.vestingDuration / releaseInterval;
-            uint256 amountPerInterval = (schedule.totalAmount - vestingSchedule.initalRelease) / totalIntervals;
+            uint256 amountPerInterval = (schedule.totalAmount - vestingSchedule.initialRelease) / totalIntervals;
             return amountPerInterval * completeIntervalsElapsed;
         }
     }
