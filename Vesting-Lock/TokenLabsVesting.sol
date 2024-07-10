@@ -37,7 +37,7 @@ contract TokenLabsVesting is ReentrancyGuard {
         require(_releaseInterval <= _vestingDuration, "Release interval must be less than or equal to vesting duration");
         require(_releaseInterval > 0, "Release interval cannot be zero");
         require(_vestingDuration > 0, "Vesting duration cannot be zero");
-        require(_vestingStart >= block.timestamp, "Vesting start must be in the future");
+        require(_vestingStart >= block.timestamp, "Vesting start date can be current or in future");
 
         token = IERC20(_tokenAddress);
         beneficiary = _beneficiary;
