@@ -16,6 +16,8 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
 
     mapping(address => TokenInfo) public tokenInfo;
     mapping(address => address[]) public tokensCreatedBy;
+    mapping(address => bool) public whitelist;
+
     uint256 public creationFee = 0.0001 ether;
 
     event TokenCreated(address indexed tokenAddress, string name, string symbol, address creator, uint256 creationDate, uint256 initialSupply);
@@ -56,6 +58,8 @@ contract TokenLabsTokenFactory is Ownable2Step, ReentrancyGuard {
         tokenInfo[address(newToken)] = TokenInfo(name, symbol, msg.sender, block.timestamp, initialSupply);
 
         tokensCreatedBy[msg.sender].push(address(newToken));
+
+        whitelist[address(newToken)] = true;
 
         emit TokenCreated(address(newToken), name, symbol, msg.sender, block.timestamp, initialSupply);
 

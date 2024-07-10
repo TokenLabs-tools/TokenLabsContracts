@@ -5,10 +5,27 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+/**
+ * @title ITokenLabsTokenFactory
+ * @dev Interface for the TokenLabsTokenFactory contract.
+ */
+interface ITokenLabsTokenFactory { function whitelist(address token) external view returns (bool); }
+
+/**
+ * @title IFactoryWithPair
+ * @dev Interface for the factory contract.
+ */
+interface IFactoryWithPair { function getPair(address tokenA, address tokenB) external view returns (address pair); }
+
+/**
+ * @title IRouterWithFactory
+ * @dev Interface for the router contract with a factory() function.
+ */
+interface IRouterWithFactory { function factory() external view returns (address); }
 
 /**
  * @title TokenLabsLaunchpadFactory
@@ -25,6 +42,8 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
     uint256 private _feeAmount = 1 ether; // 1 ETH fee
     IUniswapV2Router02 private immutable _router;
     address private immutable _weth;
+    address private immutable _tokenFactory;
+    address private immutable _pairFactory;
 
     struct SaleParams { 
         address payable seller; ERC20 token; uint256 softcap; uint256 hardcap; uint256 startTime; uint256 endTime; 
@@ -36,9 +55,10 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
      * @dev Initializes the contract with the given parameters.
      * @param router The address of the Uniswap V2 router.
      * @param weth The address of the Wrapped ETH token.
+     * @param tokenFactory The address of the token factory contract.
      */
-    constructor(IUniswapV2Router02 router, address weth) Ownable(msg.sender) {
-        (_router, _weth) = (router, weth);
+    constructor(IUniswapV2Router02 router, address weth, address tokenFactory) Ownable(msg.sender) {
+        _router = router; _weth = weth; _tokenFactory = tokenFactory; _pairFactory = IRouterWithFactory(address(router)).factory();
     }
 
     /**
@@ -51,10 +71,22 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
         require(msg.sender == tx.origin, "Contracts are not allowed");
         require(msg.value == _feeAmount, "Incorrect fee amount");
         require(params.referralRewardPercentage <= 10, "Referral reward percentage cannot exceed 10%");
+
+        // Validate that the token is on the whitelist of the second contract
+        ITokenLabsTokenFactory tokenFactory = ITokenLabsTokenFactory(_tokenFactory);
+        require(tokenFactory.whitelist(address(params.token)), "Token is not whitelisted");
+
+        // Validate that the pair does not exist in the MagicSeaFactory contract
+        IFactoryWithPair pairFactory = IFactoryWithPair(_pairFactory);
+
+        address pairingToken = params.pairingToken;
+
+        if(pairingToken == address(0)){ pairingToken = _weth; }
         
-        if(params.referralRewardPercentage > 0){
-            require(params.rewardPool > 0, "Reward Pool cannot be 0");
-        }
+        address pair = pairFactory.getPair(address(params.token), pairingToken);
+        require(pair == address(0), "Pair already exists");
+
+        if(params.referralRewardPercentage > 0){ require(params.rewardPool > 0, "Reward Pool cannot be 0"); }
 
         (bool success, ) = owner().call{value: msg.value}("");
         require(success, "Transfer failed");
@@ -73,9 +105,7 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
     /**
     * @notice Override renounceOwnership.
     */
-    function renounceOwnership() public override onlyOwner {
-        revert("Renounce ownership is not allowed");
-    }
+    function renounceOwnership() public override onlyOwner { revert("Renounce ownership is not allowed"); }
 
     /**
      * @notice Sets the fee amount for creating a sale.
@@ -99,7 +129,6 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
      */
     function getSales() public view returns (address[] memory) { return sales; }
 }
-
 
 /**
  * @title SaleContract
@@ -125,12 +154,14 @@ contract SaleContract is Ownable, ReentrancyGuard {
     address public weth;
     bool public isListed = false;
     bool public isCanceled = false;
+    string public cancelMsg;
 
     /**
      * @dev Initializes the sale contract with the given parameters.
      * @param params The parameters of the sale.
      * @param _dexRouter The address of the Uniswap V2 router.
      * @param _weth The address of the Wrapped ETH token.
+     * @param _owner The owner address of the contract.
      */
     constructor(TokenLabsLaunchpadFactory.SaleParams memory params, IUniswapV2Router02 _dexRouter, address _weth, address _owner) Ownable(_owner) {
         require(params.softcap < params.hardcap, "Softcap must not be greater than Hardcap");
@@ -138,6 +169,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
         additionalSaleDetails = AdditionalSaleDetails(params.pairingToken);
         dexRouter = _dexRouter;
         weth = _weth;
+        cancelMsg = "";
     }
 
     /**
@@ -190,9 +222,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
             require(success, "Refund transfer failed");
         }
 
-        if (excessAmount > 0 && !isETH) {
-            IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, excessAmount);
-        }
+        if (excessAmount > 0 && !isETH) { IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, excessAmount); }
 
         sale.collectedETH += purchaseAmount;
 
@@ -214,11 +244,11 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @param ethAmount The amount of ETH to add as liquidity.
      */
     function addLiquidityToDEX(uint256 tokenAmount, uint256 ethAmount) private {
-        IERC20(address(sale.token)).safeApprove(address(dexRouter), tokenAmount);
+        IERC20(address(sale.token)).approve(address(dexRouter), tokenAmount);
         if (additionalSaleDetails.pairingToken == address(0)) {
             dexRouter.addLiquidityETH{value: ethAmount}(address(sale.token), tokenAmount, 0, 0, address(0), block.timestamp);
         } else {
-            IERC20(additionalSaleDetails.pairingToken).safeApprove(address(dexRouter), ethAmount);
+            IERC20(additionalSaleDetails.pairingToken).approve(address(dexRouter), ethAmount);
             dexRouter.addLiquidity(address(sale.token), additionalSaleDetails.pairingToken, tokenAmount, ethAmount, 0, 0, address(0), block.timestamp);
         }
     }
@@ -232,6 +262,23 @@ contract SaleContract is Ownable, ReentrancyGuard {
         require(!isListed, "Tokens were listed");
         require(block.timestamp > sale.endTime || sale.collectedETH >= sale.hardcap, "Sale end conditions not met");
         if (sale.collectedETH < sale.softcap) return;
+
+        address _pairFactory = IRouterWithFactory(address(dexRouter)).factory();
+        address pairingToken = additionalSaleDetails.pairingToken;
+
+        // Validate that the pair does not exist in the MagicSeaFactory contract
+        IFactoryWithPair pairFactory = IFactoryWithPair(_pairFactory);
+
+        if(pairingToken == address(0)){ pairingToken = weth; }
+        
+        address pair = pairFactory.getPair(address(sale.token), pairingToken);
+        
+        if(pair != address(0)){
+            isCanceled = true;
+            sale.endTime = block.timestamp;
+            cancelMsg = "Pair Created";
+            return;
+        }
 
         uint256 liquidityETH = sale.collectedETH > sale.hardcap ? sale.hardcap : sale.collectedETH;
         uint256 excessETH = sale.collectedETH > sale.hardcap ? sale.collectedETH - sale.hardcap : 0;
@@ -274,53 +321,59 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @dev If the sale did not reach the softcap, users can claim refunds. Otherwise, they can claim their tokens.
      */
     function claim() external nonReentrant {
-
-    require(msg.sender == tx.origin, "Contracts are not allowed");
-    require(block.timestamp > sale.endTime, "Sale has not ended");
+        require(msg.sender == tx.origin, "Contracts are not allowed");
+        require(block.timestamp > sale.endTime, "Sale has not ended");
         
-    if (sale.collectedETH < sale.softcap) {
-        uint256 remainingTokens = IERC20(address(sale.token)).balanceOf(address(this));
-        uint256 ethAmount = contributions[msg.sender];
+        if (sale.collectedETH < sale.softcap || isCanceled) {
+            
+            uint256 ethAmount = contributions[msg.sender];
 
-        if (sale.seller == msg.sender && remainingTokens > 0) {
-            IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
+            require(ethAmount > 0, "No amount available to claim");
 
-            if(ethAmount > 0){
+            if (sale.seller == msg.sender) {
+
+                uint256 remainingTokens = IERC20(address(sale.token)).balanceOf(address(this));
+
+                require(remainingTokens > 0, "No Remaining Tokens");
+
+                contributions[msg.sender] = 0;
+                tokenAmounts[msg.sender] = 0;
+                referralRewards[msg.sender] = 0;
+                
+                IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
 
                 if (additionalSaleDetails.pairingToken == address(0)) {
-                    contributions[msg.sender] = 0;
                     (bool success, ) = msg.sender.call{value: ethAmount}("");
                     require(success, "Transfer failed");
                 } else {
                     IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
                 }
+
+            } else {
                 
+                contributions[msg.sender] = 0;
+                tokenAmounts[msg.sender] = 0;
+                referralRewards[msg.sender] = 0;
+                if (additionalSaleDetails.pairingToken == address(0)) {
+                    (bool success, ) = msg.sender.call{value: ethAmount}("");
+                    require(success, "Transfer failed");
+                } else {
+                    IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
+                }
             }
 
         } else {
-            require(ethAmount > 0, "No amount available to claim");
-            contributions[msg.sender] = 0;
-            if (additionalSaleDetails.pairingToken == address(0)) {
-                (bool success, ) = msg.sender.call{value: ethAmount}("");
-                require(success, "Transfer failed");
-            } else {
-                IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
-            }
+            require(isListed == true, "Sale has not ended");
+            uint256 tokens = tokenAmounts[msg.sender];
+            uint256 referralReward = referralRewards[msg.sender];
+            uint256 totalTokens = tokens + referralReward;
+
+            require(totalTokens > 0, "No tokens available to claim");
+            tokenAmounts[msg.sender] = 0;
+            referralRewards[msg.sender] = 0;
+            IERC20(address(sale.token)).safeTransfer(msg.sender, totalTokens);
         }
-
-    } else {
-        require(isListed == true, "Sale has not ended");
-        uint256 tokens = tokenAmounts[msg.sender];
-        uint256 referralReward = referralRewards[msg.sender];
-        uint256 totalTokens = tokens + referralReward;
-
-        require(totalTokens > 0, "No tokens available to claim");
-        tokenAmounts[msg.sender] = 0;
-        referralRewards[msg.sender] = 0;
-        IERC20(address(sale.token)).safeTransfer(msg.sender, totalTokens);
     }
-}
-
 
     /**
      * @notice Cancels the token sale.
@@ -330,6 +383,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
         require(block.timestamp < sale.startTime || block.timestamp > sale.endTime, "Sale cannot be cancelled after it has started");
         sale.endTime = block.timestamp; // Mark the sale as ended
         isCanceled = true;
+        cancelMsg = "Sale Owner";
     }
 
     /**
