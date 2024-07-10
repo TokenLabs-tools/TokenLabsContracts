@@ -48,6 +48,7 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
      * @dev Requires a fee to be paid. The fee is transferred to the contract owner.
      */
     function createSale(SaleParams memory params) public payable nonReentrant returns (address) {
+        require(msg.sender == tx.origin, "Contracts are not allowed");
         require(msg.value == _feeAmount, "Incorrect fee amount");
         require(params.referralRewardPercentage <= 10, "Referral reward percentage cannot exceed 10%");
         
@@ -146,6 +147,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @dev Users can buy tokens using ETH or another ERC20 token. Applies referral rewards if applicable.
      */
     function buyTokens(uint256 erc20Amount, address referrer) public payable nonReentrant {
+        require(msg.sender == tx.origin, "Contracts are not allowed");
         require(block.timestamp >= sale.startTime && block.timestamp <= sale.endTime, "Sale is not ongoing");
         require(referrer != msg.sender, "You cannot refer yourself");
         require(!isListed, "Tokens were listed");
@@ -226,6 +228,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @dev The sale can only be ended if the softcap is reached and the sale end conditions are met.
      */
     function endSale() external nonReentrant {
+        require(msg.sender == tx.origin, "Contracts are not allowed");
         require(!isListed, "Tokens were listed");
         require(block.timestamp > sale.endTime || sale.collectedETH >= sale.hardcap, "Sale end conditions not met");
         if (sale.collectedETH < sale.softcap) return;
@@ -271,6 +274,8 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @dev If the sale did not reach the softcap, users can claim refunds. Otherwise, they can claim their tokens.
      */
     function claim() external nonReentrant {
+
+    require(msg.sender == tx.origin, "Contracts are not allowed");
     require(block.timestamp > sale.endTime, "Sale has not ended");
         
     if (sale.collectedETH < sale.softcap) {
