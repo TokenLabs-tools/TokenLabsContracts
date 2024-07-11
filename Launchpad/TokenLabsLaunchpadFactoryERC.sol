@@ -22,6 +22,12 @@ interface ITokenLabsTokenFactory { function whitelist(address token) external vi
 interface IFactoryWithPair { function getPair(address tokenA, address tokenB) external view returns (address pair); }
 
 /**
+ * @title IPair
+ * @dev Interface for the pair contract to check totalSupply.
+ */
+interface IPair { function totalSupply() external view returns (uint256); }
+
+/**
  * @title IRouterWithFactory
  * @dev Interface for the router contract with a factory() function.
  */
@@ -84,7 +90,12 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
         if(pairingToken == address(0)){ pairingToken = _weth; }
         
         address pair = pairFactory.getPair(address(params.token), pairingToken);
-        require(pair == address(0), "Pair already exists");
+
+        if(pair != address(0)){
+            IPair existingPair = IPair(pair);
+            uint256 totalSupply = existingPair.totalSupply();
+            require(totalSupply == 0, "Pair already exists");
+        }
 
         if(params.referralRewardPercentage > 0){ require(params.rewardPool > 0, "Reward Pool cannot be 0"); }
 
@@ -154,7 +165,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
     address public weth;
     bool public isListed = false;
     bool public isCanceled = false;
-    string public cancelMsg;
+    string public cancelMsg = "";
 
     /**
      * @dev Initializes the sale contract with the given parameters.
@@ -169,7 +180,6 @@ contract SaleContract is Ownable, ReentrancyGuard {
         additionalSaleDetails = AdditionalSaleDetails(params.pairingToken);
         dexRouter = _dexRouter;
         weth = _weth;
-        cancelMsg = "";
     }
 
     /**
@@ -246,10 +256,10 @@ contract SaleContract is Ownable, ReentrancyGuard {
     function addLiquidityToDEX(uint256 tokenAmount, uint256 ethAmount) private {
         IERC20(address(sale.token)).approve(address(dexRouter), tokenAmount);
         if (additionalSaleDetails.pairingToken == address(0)) {
-            dexRouter.addLiquidityETH{value: ethAmount}(address(sale.token), tokenAmount, 0, 0, address(0), block.timestamp);
+            dexRouter.addLiquidityETH{value: ethAmount}(address(sale.token), tokenAmount, 0, 0, address(0), (block.timestamp + 1200));
         } else {
             IERC20(additionalSaleDetails.pairingToken).approve(address(dexRouter), ethAmount);
-            dexRouter.addLiquidity(address(sale.token), additionalSaleDetails.pairingToken, tokenAmount, ethAmount, 0, 0, address(0), block.timestamp);
+            dexRouter.addLiquidity(address(sale.token), additionalSaleDetails.pairingToken, tokenAmount, ethAmount, 0, 0, address(0), (block.timestamp + 1200));
         }
     }
 
@@ -274,10 +284,14 @@ contract SaleContract is Ownable, ReentrancyGuard {
         address pair = pairFactory.getPair(address(sale.token), pairingToken);
         
         if(pair != address(0)){
-            isCanceled = true;
-            sale.endTime = block.timestamp;
-            cancelMsg = "Pair Created";
-            return;
+            IPair existingPair = IPair(pair);
+            uint256 totalSupply = existingPair.totalSupply();
+            if (totalSupply > 0) {
+                isCanceled = true;
+                sale.endTime = block.timestamp;
+                cancelMsg = "Pair Created";
+                return;
+            }
         }
 
         uint256 liquidityETH = sale.collectedETH > sale.hardcap ? sale.hardcap : sale.collectedETH;
