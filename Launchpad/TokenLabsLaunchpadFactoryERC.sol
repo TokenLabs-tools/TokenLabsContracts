@@ -339,10 +339,8 @@ contract SaleContract is Ownable, ReentrancyGuard {
         require(block.timestamp > sale.endTime, "Sale has not ended");
         
         if (sale.collectedETH < sale.softcap || isCanceled) {
-            
-            uint256 ethAmount = contributions[msg.sender];
 
-            require(ethAmount > 0, "No amount available to claim");
+            uint256 ethAmount = contributions[msg.sender];
 
             if (sale.seller == msg.sender) {
 
@@ -356,14 +354,20 @@ contract SaleContract is Ownable, ReentrancyGuard {
                 
                 IERC20(address(sale.token)).safeTransfer(msg.sender, remainingTokens);
 
-                if (additionalSaleDetails.pairingToken == address(0)) {
-                    (bool success, ) = msg.sender.call{value: ethAmount}("");
-                    require(success, "Transfer failed");
-                } else {
-                    IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
+                if(ethAmount > 0){
+
+                    if (additionalSaleDetails.pairingToken == address(0)) {
+                        (bool success, ) = msg.sender.call{value: ethAmount}("");
+                        require(success, "Transfer failed");
+                    } else {
+                        IERC20(additionalSaleDetails.pairingToken).safeTransfer(msg.sender, ethAmount);
+                    }
+
                 }
 
             } else {
+
+                require(ethAmount > 0, "No amount available to claim");
                 
                 contributions[msg.sender] = 0;
                 tokenAmounts[msg.sender] = 0;
