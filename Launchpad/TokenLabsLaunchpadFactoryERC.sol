@@ -4,7 +4,6 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -19,19 +18,15 @@ interface ITokenLabsTokenFactory { function whitelist(address token) external vi
  * @title IFactoryWithPair
  * @dev Interface for the factory contract.
  */
-interface IFactoryWithPair { function getPair(address tokenA, address tokenB) external view returns (address pair); }
+interface IFactoryWithPair { function getPair(address tokenA, address tokenB) external view returns (address pair); function createPair(address tokenA, address tokenB) external returns (address pair);}
+
+interface IWETH { function deposit() external payable; function transfer(address to, uint256 value) external returns (bool); }
 
 /**
  * @title IPair
  * @dev Interface for the pair contract to check totalSupply.
  */
-interface IPair { function totalSupply() external view returns (uint256); }
-
-/**
- * @title IRouterWithFactory
- * @dev Interface for the router contract with a factory() function.
- */
-interface IRouterWithFactory { function factory() external view returns (address); }
+interface IPair { function totalSupply() external view returns (uint256); function mint(address to) external returns (uint256 liquidity);}
 
 /**
  * @title TokenLabsLaunchpadFactory
@@ -46,7 +41,6 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
     event FeeAmountUpdated(uint256 oldFeeAmount, uint256 newFeeAmount);
 
     uint256 private _feeAmount = 1 ether; // 1 ETH fee
-    IUniswapV2Router02 private immutable _router;
     address private immutable _weth;
     address private immutable _tokenFactory;
     address private immutable _pairFactory;
@@ -59,12 +53,12 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
 
     /**
      * @dev Initializes the contract with the given parameters.
-     * @param router The address of the Uniswap V2 router.
+     * @param pairFactory The address of the Pair Factory.
      * @param weth The address of the Wrapped ETH token.
      * @param tokenFactory The address of the token factory contract.
      */
-    constructor(IUniswapV2Router02 router, address weth, address tokenFactory) Ownable(msg.sender) {
-        _router = router; _weth = weth; _tokenFactory = tokenFactory; _pairFactory = IRouterWithFactory(address(router)).factory();
+    constructor(address pairFactory, address weth, address tokenFactory) Ownable(msg.sender) {
+        _weth = weth; _tokenFactory = tokenFactory; _pairFactory = pairFactory;
     }
 
     /**
@@ -95,6 +89,10 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
             IPair existingPair = IPair(pair);
             uint256 totalSupply = existingPair.totalSupply();
             require(totalSupply == 0, "Pair already exists");
+
+            uint256 saleTokenPairBalance = IERC20(params.token).balanceOf(pair);
+            require(saleTokenPairBalance == 0, "Pair already exists");
+
         }
 
         if(params.referralRewardPercentage > 0){ require(params.rewardPool > 0, "Reward Pool cannot be 0"); }
@@ -105,7 +103,7 @@ contract TokenLabsLaunchpadFactory is Ownable2Step, ReentrancyGuard {
         uint256 tokenAmountForSale = (params.hardcap * params.tokensPerWei) + (params.hardcap * params.tokensPerWeiListing) + params.rewardPool;
         IERC20(address(params.token)).safeTransferFrom(params.seller, address(this), tokenAmountForSale);
 
-        SaleContract newSale = new SaleContract(params, _router, _weth, msg.sender);
+        SaleContract newSale = new SaleContract(params, _pairFactory, _weth, msg.sender);
         IERC20(address(params.token)).safeTransfer(address(newSale), tokenAmountForSale);
 
         sales.push(address(newSale));
@@ -158,7 +156,7 @@ contract SaleContract is Ownable, ReentrancyGuard {
 
     Sale public sale;
     AdditionalSaleDetails public additionalSaleDetails;
-    IUniswapV2Router02 public dexRouter;
+    address public pairFactory;
     mapping(address => uint256) public contributions;
     mapping(address => uint256) public tokenAmounts;
     mapping(address => uint256) public referralRewards;
@@ -170,15 +168,15 @@ contract SaleContract is Ownable, ReentrancyGuard {
     /**
      * @dev Initializes the sale contract with the given parameters.
      * @param params The parameters of the sale.
-     * @param _dexRouter The address of the Uniswap V2 router.
+     * @param _pairFactory The address of the Uniswap V2 Factory.
      * @param _weth The address of the Wrapped ETH token.
      * @param _owner The owner address of the contract.
      */
-    constructor(TokenLabsLaunchpadFactory.SaleParams memory params, IUniswapV2Router02 _dexRouter, address _weth, address _owner) Ownable(_owner) {
+    constructor(TokenLabsLaunchpadFactory.SaleParams memory params, address _pairFactory, address _weth, address _owner) Ownable(_owner) {
         require(params.softcap < params.hardcap, "Softcap must not be greater than Hardcap");
         sale = Sale(params.seller, params.token, params.softcap, params.hardcap, params.startTime, params.endTime, params.tokensPerWei, params.tokensPerWeiListing, 0, params.limitPerAccountEnabled, params.limitPerAccount, params.referralRewardPercentage, params.rewardPool);
         additionalSaleDetails = AdditionalSaleDetails(params.pairingToken);
-        dexRouter = _dexRouter;
+        pairFactory = _pairFactory;
         weth = _weth;
     }
 
@@ -253,14 +251,23 @@ contract SaleContract is Ownable, ReentrancyGuard {
      * @param tokenAmount The amount of tokens to add as liquidity.
      * @param ethAmount The amount of ETH to add as liquidity.
      */
-    function addLiquidityToDEX(uint256 tokenAmount, uint256 ethAmount) private {
-        IERC20(address(sale.token)).approve(address(dexRouter), tokenAmount);
-        if (additionalSaleDetails.pairingToken == address(0)) {
-            dexRouter.addLiquidityETH{value: ethAmount}(address(sale.token), tokenAmount, 0, 0, address(0), (block.timestamp + 1200));
-        } else {
-            IERC20(additionalSaleDetails.pairingToken).approve(address(dexRouter), ethAmount);
-            dexRouter.addLiquidity(address(sale.token), additionalSaleDetails.pairingToken, tokenAmount, ethAmount, 0, 0, address(0), (block.timestamp + 1200));
+    function addLiquidityToDEX(uint256 tokenAmount, uint256 ethAmount, address tokenA, address pair, address pairingToken) private {
+
+        if (pair == address(0)) {
+            pair = IFactoryWithPair(pairFactory).createPair(tokenA, pairingToken);
         }
+
+        IERC20(address(tokenA)).safeTransfer(pair, tokenAmount);
+
+        if(pairingToken == weth){
+            IWETH(weth).deposit{value: ethAmount}();
+            assert(IWETH(weth).transfer(pair, ethAmount));
+        }else{
+            IERC20(address(pairingToken)).safeTransfer(pair, ethAmount);
+        }     
+
+        IPair(pair).mint(address(0));
+
     }
 
     /**
@@ -273,25 +280,30 @@ contract SaleContract is Ownable, ReentrancyGuard {
         require(block.timestamp > sale.endTime || sale.collectedETH >= sale.hardcap, "Sale end conditions not met");
         if (sale.collectedETH < sale.softcap) return;
 
-        address _pairFactory = IRouterWithFactory(address(dexRouter)).factory();
         address pairingToken = additionalSaleDetails.pairingToken;
 
         // Validate that the pair does not exist in the MagicSeaFactory contract
-        IFactoryWithPair pairFactory = IFactoryWithPair(_pairFactory);
+        IFactoryWithPair _pairFactory = IFactoryWithPair(pairFactory);
 
         if(pairingToken == address(0)){ pairingToken = weth; }
         
-        address pair = pairFactory.getPair(address(sale.token), pairingToken);
+        address pair = _pairFactory.getPair(address(sale.token), pairingToken);
         
         if(pair != address(0)){
+
             IPair existingPair = IPair(pair);
             uint256 totalSupply = existingPair.totalSupply();
-            if (totalSupply > 0) {
-                isCanceled = true;
+            if (totalSupply > 0) { isCanceled = true; }
+
+            uint256 saleTokenPairBalance = IERC20(sale.token).balanceOf(pair);
+            if (saleTokenPairBalance > 0) { isCanceled = true; }
+
+            if(isCanceled){
                 sale.endTime = block.timestamp;
                 cancelMsg = "Pair Created";
                 return;
             }
+
         }
 
         uint256 liquidityETH = sale.collectedETH > sale.hardcap ? sale.hardcap : sale.collectedETH;
@@ -320,10 +332,10 @@ contract SaleContract is Ownable, ReentrancyGuard {
 
         uint256 liquidityToken = liquidityETH * sale.tokensPerWeiListing;
         if (additionalSaleDetails.pairingToken == address(0)) {
-            addLiquidityToDEX(liquidityToken, liquidityETH);
+            addLiquidityToDEX(liquidityToken, liquidityETH, address(sale.token), pair, pairingToken);
         } else {
             uint256 pairingTokenAmount = IERC20(additionalSaleDetails.pairingToken).balanceOf(address(this));
-            addLiquidityToDEX(liquidityToken, pairingTokenAmount);
+            addLiquidityToDEX(liquidityToken, pairingTokenAmount, address(sale.token), pair, pairingToken);
         }
 
         sale.endTime = block.timestamp;
